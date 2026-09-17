@@ -37,3 +37,4 @@ Finder에서 만든 `.app`은 이 맥의 Homebrew Python(tkinter 포함)을 번�
 설정은 ⌘, 또는 파일 → 설정. 편집기 글꼴·크기, 화면 글자 크기, 탭 너비, 테마, 줄 번호, 문법 강조, 세션 복원을 바로 적용합니다.
 
 앱 카테고리는 생산성입니다.
+소스: https://github.com/mindsurf0176/textpress

@@ -23,6 +23,9 @@ if [ ! -x "$PYAPP_SRC/Contents/MacOS/Python" ]; then
   exit 1
 fi
 
+if [ -d "$APP" ]; then
+  chmod -R u+rwX "$APP" 2>/dev/null || true
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/texter.py" "$ROOT/core.py" "$APP/Contents/Resources/"
@@ -61,3 +64,17 @@ rm -rf "$DEST" "$HOME/Applications/txtr.app" "$HOME/Applications/Textpress.app" 
 cp -R "$APP" "$DEST"
 echo "$APP"
 echo "$DEST"
+
+ZIP="$ROOT/dist/typad-macos-arm64.zip"
+rm -f "$ZIP"
+ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+STAGE="$ROOT/dist/dmg-stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+cp -R "$APP" "$STAGE/typad.app"
+ln -sf /Applications "$STAGE/Applications"
+DMG="$ROOT/dist/typad.dmg"
+rm -f "$DMG"
+hdiutil create -volname typad -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+echo "$ZIP"
+echo "$DMG"

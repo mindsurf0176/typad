@@ -29,11 +29,17 @@ python3 texter.py /path/to/folder
 
 `python3 test_texter.py` 로 핵심 로직을 검사합니다.
 
-## macOS 앱
+## 설치
+
+```bash
+sh scripts/install.sh
+```
+
+`~/Applications/typad.app`이 생기고 바로 열립니다. 응용 프로그램 폴더로 끌어다 넣으려면 `dist/typad.dmg`를 여세요.
 
 ```bash
 sh scripts/build-app.sh
-open ~/Applications/typad.app
+open dist/typad.dmg
 ```
 
 이 명령은 **이 Mac의 Homebrew Python**을 번들에 복사합니다. 다른 Mac으로 복사하거나 앱스토어에 올리는 빌드가 아닙니다.

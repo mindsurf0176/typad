@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textpress — Notepad++-style editor. Stdlib only."""
+"""txtr — Notepad++-style editor. Stdlib only."""
 from __future__ import annotations
 
 import os
@@ -968,7 +968,7 @@ class App:
 
     def _write(self, ed: Editor, path: Path) -> bool:
         data = encode_for_save(ed.content(), ed.encoding, ed.eol)
-        tmp = path.with_name(path.name + ".textpresstmp")
+        tmp = path.with_name(path.name + ".txtrtmp")
         try:
             tmp.write_bytes(data)
             tmp.replace(path)

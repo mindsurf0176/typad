@@ -5,17 +5,17 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>ko</string>
   <key>CFBundleDisplayName</key>
-  <string>Textpress</string>
+  <string>txtr</string>
   <key>CFBundleExecutable</key>
-  <string>Textpress</string>
+  <string>txtr</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
-  <string>local.textpress</string>
+  <string>local.txtr</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Textpress</string>
+  <string>txtr</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

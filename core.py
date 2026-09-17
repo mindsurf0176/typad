@@ -1,4 +1,4 @@
-"""Pure helpers for Textpress. No tkinter."""
+"""Pure helpers for txtr. No tkinter."""
 from __future__ import annotations
 
 import json
@@ -11,9 +11,12 @@ SKIP_DIRS = {
     ".git", ".hg", ".svn", ".venv", "venv", "node_modules", "__pycache__",
     ".tox", ".mypy_cache", ".pytest_cache", "dist", "build", ".next",
 }
-APP_NAME = "Textpress"
-CONF_PATH = Path.home() / ".textpress.json"
-LEGACY_CONF_PATH = Path.home() / ".texter.json"
+APP_NAME = "txtr"
+CONF_PATH = Path.home() / ".txtr.json"
+LEGACY_CONF_PATHS = (
+    Path.home() / ".textpress.json",
+    Path.home() / ".texter.json",
+)
 MAX_HIGHLIGHT = 250_000
 MAX_OPEN_WARN = 8_000_000
 
@@ -198,7 +201,7 @@ def find_in_files(root: Path, pattern: str, regex: bool, case: bool, limit: int 
 
 
 def load_conf() -> dict:
-    for path in (CONF_PATH, LEGACY_CONF_PATH):
+    for path in (CONF_PATH, *LEGACY_CONF_PATHS):
         if not path.exists():
             continue
         try:

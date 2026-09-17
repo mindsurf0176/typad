@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small checks for txtr helpers and a withdrawn Tk smoke."""
+"""Small checks for typad helpers and a withdrawn Tk smoke."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,8 +25,8 @@ def test_detect_lang():
 
 
 def test_app_identity():
-    assert APP_NAME == "txtr"
-    assert CONF_PATH.name == ".txtr.json"
+    assert APP_NAME == "typad"
+    assert CONF_PATH.name == ".typad.json"
 
 
 def test_decode_eol_and_cp949():

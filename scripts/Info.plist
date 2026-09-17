@@ -5,17 +5,17 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>ko</string>
   <key>CFBundleDisplayName</key>
-  <string>txtr</string>
+  <string>typad</string>
   <key>CFBundleExecutable</key>
-  <string>txtr</string>
+  <string>typad</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
-  <string>local.txtr</string>
+  <string>local.typad</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>txtr</string>
+  <string>typad</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

@@ -1,4 +1,4 @@
-"""Pure helpers for txtr. No tkinter."""
+"""Pure helpers for typad. No tkinter."""
 from __future__ import annotations
 
 import json
@@ -11,9 +11,10 @@ SKIP_DIRS = {
     ".git", ".hg", ".svn", ".venv", "venv", "node_modules", "__pycache__",
     ".tox", ".mypy_cache", ".pytest_cache", "dist", "build", ".next",
 }
-APP_NAME = "txtr"
-CONF_PATH = Path.home() / ".txtr.json"
+APP_NAME = "typad"
+CONF_PATH = Path.home() / ".typad.json"
 LEGACY_CONF_PATHS = (
+    Path.home() / ".txtr.json",
     Path.home() / ".textpress.json",
     Path.home() / ".texter.json",
 )

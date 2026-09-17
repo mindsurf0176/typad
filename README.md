@@ -3,6 +3,8 @@
 Notepad++처럼 가볍고, 탭·문법 강조·찾기/바꾸기·폴더 워크스페이스가 있는 텍스트 에디터.
 의존성 없음. Python 3 표준 라이브러리(`tkinter`)만 사용합니다.
 
+소스: https://github.com/mindsurf0176/typad
+
 ## 실행
 
 ```bash
@@ -11,7 +13,8 @@ python3 texter.py README.md
 python3 texter.py /path/to/folder
 ```
 
-설정과 마지막 세션은 `~/.typad.json`에 저장됩니다. 예전 `~/.txtr.json` / `~/.textpress.json` / `~/.texter.json`이 있으면 그대로 읽어 옵니다.
+설정과 마지막 세션은 `~/Library/Application Support/typad/config.json`에 저장됩니다.
+예전 `~/.typad.json` / `~/.txtr.json` / `~/.textpress.json` / `~/.texter.json`이 있으면 그대로 읽어 옵니다.
 
 ## 기능
 
@@ -22,6 +25,7 @@ python3 texter.py /path/to/folder
 - 주석 토글, 줄 복제/이동/삭제, 자동 들여쓰기
 - 폴더 트리, 최근 파일, 세션 복원
 - 어두운/밝은 테마, 확대/축소
+- Shift+Enter 줄바꿈, ⌘⌫ 줄 앞까지 지우기, ⌘←/→ 줄 처음/끝
 
 `python3 test_texter.py` 로 핵심 로직을 검사합니다.
 
@@ -32,10 +36,11 @@ sh scripts/build-app.sh
 open ~/Applications/typad.app
 ```
 
-Finder에서 만든 `.app`은 이 맥의 Homebrew Python(tkinter 포함)을 번들 안으로 복사합니다. 다른 맥으로 복사해서 쓰는 포터블 빌드는 아닙니다. 대상 맥에서 `sh scripts/build-app.sh`를 다시 실행하세요.
+이 명령은 **이 Mac의 Homebrew Python**을 번들에 복사합니다. 다른 Mac으로 복사하거나 앱스토어에 올리는 빌드가 아닙니다.
+앱 카테고리는 생산성, 번들 ID는 `ai.minseo.typad`입니다.
 
-설정은 ⌘, 또는 파일 → 설정. 편집기 글꼴·크기, 화면 글자 크기, 탭 너비, 테마, 줄 번호, 문법 강조, 세션 복원을 바로 적용합니다.
+GitHub Releases는 소스 태그입니다. Mac App Store 제출은 [docs/app-store.md](docs/app-store.md) 게이트가 남아 있습니다.
 
-앱 카테고리는 생산성입니다.
+## 라이선스 / 개인정보
 
-소스: https://github.com/mindsurf0176/typad
+MIT. 파일은 이 Mac에만 남습니다. [PRIVACY.md](PRIVACY.md)

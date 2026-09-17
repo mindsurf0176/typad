@@ -26,7 +26,8 @@ def test_detect_lang():
 
 def test_app_identity():
     assert APP_NAME == "typad"
-    assert CONF_PATH.name == ".typad.json"
+    assert CONF_PATH.name == "config.json"
+    assert "typad" in CONF_PATH.parts
 
 
 def test_decode_eol_and_cp949():
@@ -84,6 +85,35 @@ def test_gui_smoke():
     app.root.destroy()
 
 
+def test_edit_keys():
+    from texter import App
+
+    app = App()
+    app.root.withdraw()
+    ed = app._ed()
+    ed.text.delete("1.0", "end")
+    ed.text.insert("1.0", "hello world")
+    ed.text.mark_set("insert", "1.5")
+    ed._delete_to_line_start()
+    assert ed.content() == " world"
+    ed.text.delete("1.0", "end")
+    ed.text.insert("1.0", "    ready")
+    ed.text.mark_set("insert", "end-1c")
+    ed._autoindent()
+    text = ed.content()
+    assert chr(10) in text
+    assert text.split(chr(10))[1].startswith("    ")
+    ed.text.delete("1.0", "end")
+    ed.text.insert("1.0", "one two three")
+    ed.text.mark_set("insert", "1.7")
+    ed._delete_word_left()
+    assert "three" in ed.content()
+    binds = " ".join(ed.text.bind())
+    assert "Return" in binds
+    assert "BackSpace" in binds
+    app.root.destroy()
+
+
 if __name__ == "__main__":
     test_detect_lang()
     test_app_identity()
@@ -91,4 +121,5 @@ if __name__ == "__main__":
     test_comment_and_search()
     test_spans_python_js_html()
     test_gui_smoke()
+    test_edit_keys()
     print("ok")

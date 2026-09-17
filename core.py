@@ -12,8 +12,9 @@ SKIP_DIRS = {
     ".tox", ".mypy_cache", ".pytest_cache", "dist", "build", ".next",
 }
 APP_NAME = "typad"
-CONF_PATH = Path.home() / ".typad.json"
+CONF_PATH = Path.home() / "Library" / "Application Support" / "typad" / "config.json"
 LEGACY_CONF_PATHS = (
+    Path.home() / ".typad.json",
     Path.home() / ".txtr.json",
     Path.home() / ".textpress.json",
     Path.home() / ".texter.json",
@@ -214,6 +215,7 @@ def load_conf() -> dict:
 
 def save_conf(conf: dict) -> None:
     try:
+        CONF_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONF_PATH.write_text(json.dumps(conf, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
         pass

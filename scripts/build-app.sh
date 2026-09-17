@@ -38,7 +38,7 @@ fi
 
 INNER_PLIST="$APP/Contents/Resources/Python.app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Set :CFBundleName typad' "$INNER_PLIST"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.typad' "$INNER_PLIST"
+/usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier ai.minseo.typad' "$INNER_PLIST"
 /usr/libexec/PlistBuddy -c 'Set :CFBundleIconFile AppIcon' "$INNER_PLIST"
 /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string typad' "$INNER_PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName typad' "$INNER_PLIST"
 /usr/libexec/PlistBuddy -c 'Add :LSApplicationCategoryType string public.app-category.productivity' "$INNER_PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :LSApplicationCategoryType public.app-category.productivity' "$INNER_PLIST"

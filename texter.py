@@ -98,9 +98,13 @@ class Editor(tk.Frame):
         self.text.bind("<Configure>", lambda e: self.redraw_gutter())
         self.text.bind("<MouseWheel>", lambda e: self.after_idle(self.redraw_gutter))
         self.text.bind("<Return>", self._autoindent)
+        self.text.bind("<Shift-Return>", self._autoindent)
+        self.text.bind("<KP_Enter>", self._autoindent)
+        self.text.bind("<Shift-KP_Enter>", self._autoindent)
         self.text.bind("<Tab>", self._tab)
         self.text.bind("<ISO_Left_Tab>", self._dedent)
         self.text.bind("<Shift-Tab>", self._dedent)
+        self._bind_text_keys()
         self.apply_theme()
 
     def _scroll_both(self, *a):
@@ -255,6 +259,118 @@ class Editor(tk.Frame):
         if line.rstrip().endswith((":", "{", "[", "(")):
             indent += self._pad()
         self.text.insert("insert", "\n" + indent)
+        return "break"
+
+    def _bind_text_keys(self):
+        t = self.text
+        mac = sys.platform == "darwin"
+        cmd = "Command" if mac else "Control"
+        opt = "Option" if mac else "Control"
+
+        def bind(seq, fn):
+            t.bind(seq, fn)
+            if mac and "Command-" in seq:
+                t.bind(seq.replace("Command-", "Meta-"), fn)
+
+        bind(f"<{cmd}-BackSpace>", self._delete_to_line_start)
+        bind(f"<{cmd}-Delete>", self._delete_to_line_end)
+        bind(f"<{opt}-BackSpace>", self._delete_word_left)
+        bind(f"<{opt}-Delete>", self._delete_word_right)
+        if mac:
+            bind("<Command-Left>", lambda e: self._move("insert linestart"))
+            bind("<Command-Right>", lambda e: self._move("insert lineend"))
+            bind("<Command-Up>", lambda e: self._move("1.0"))
+            bind("<Command-Down>", lambda e: self._move("end-1c"))
+            bind("<Option-Left>", lambda e: self._move(self._word_left_index()))
+            bind("<Option-Right>", lambda e: self._move(self._word_right_index()))
+            bind("<Command-Shift-Left>", lambda e: self._move("insert linestart", True))
+            bind("<Command-Shift-Right>", lambda e: self._move("insert lineend", True))
+            bind("<Command-Shift-Up>", lambda e: self._move("1.0", True))
+            bind("<Command-Shift-Down>", lambda e: self._move("end-1c", True))
+            bind("<Option-Shift-Left>", lambda e: self._move(self._word_left_index(), True))
+            bind("<Option-Shift-Right>", lambda e: self._move(self._word_right_index(), True))
+        else:
+            bind("<Control-Left>", lambda e: self._move(self._word_left_index()))
+            bind("<Control-Right>", lambda e: self._move(self._word_right_index()))
+            bind("<Control-Shift-Left>", lambda e: self._move(self._word_left_index(), True))
+            bind("<Control-Shift-Right>", lambda e: self._move(self._word_right_index(), True))
+
+    def _has_sel(self) -> bool:
+        try:
+            self.text.index("sel.first")
+            return True
+        except tk.TclError:
+            return False
+
+    def _move(self, index, select=False):
+        dest = self.text.index(index)
+        if select:
+            if not self._has_sel():
+                self.text.mark_set("anchor", "insert")
+            elif "anchor" not in self.text.mark_names():
+                self.text.mark_set("anchor", "sel.first")
+            self.text.tag_remove("sel", "1.0", "end")
+            a = self.text.index("anchor")
+            if self.text.compare(a, "<", dest):
+                self.text.tag_add("sel", a, dest)
+            elif self.text.compare(a, ">", dest):
+                self.text.tag_add("sel", dest, a)
+        else:
+            self.text.tag_remove("sel", "1.0", "end")
+        self.text.mark_set("insert", dest)
+        self.text.see("insert")
+        self._cursor()
+        return "break"
+
+    def _word_left_index(self) -> str:
+        if self.text.compare("insert", "==", "1.0"):
+            return "1.0"
+        return self.text.index("insert-1c wordstart")
+
+    def _word_right_index(self) -> str:
+        nxt = self.text.index("insert wordend")
+        if self.text.compare(nxt, "==", "insert"):
+            nxt = self.text.index("insert+1c wordend")
+        return nxt
+
+    def _delete_to_line_start(self, _=None):
+        if self._has_sel():
+            self.text.delete("sel.first", "sel.last")
+            return "break"
+        start = self.text.index("insert linestart")
+        ins = self.text.index("insert")
+        if self.text.compare(start, "<", ins):
+            self.text.delete(start, ins)
+        return "break"
+
+    def _delete_to_line_end(self, _=None):
+        if self._has_sel():
+            self.text.delete("sel.first", "sel.last")
+            return "break"
+        ins = self.text.index("insert")
+        end = self.text.index("insert lineend")
+        if self.text.compare(ins, "<", end):
+            self.text.delete(ins, end)
+        return "break"
+
+    def _delete_word_left(self, _=None):
+        if self._has_sel():
+            self.text.delete("sel.first", "sel.last")
+            return "break"
+        start = self._word_left_index()
+        ins = self.text.index("insert")
+        if self.text.compare(start, "<", ins):
+            self.text.delete(start, ins)
+        return "break"
+
+    def _delete_word_right(self, _=None):
+        if self._has_sel():
+            self.text.delete("sel.first", "sel.last")
+            return "break"
+        ins = self.text.index("insert")
+        end = self._word_right_index()
+        if self.text.compare(ins, "<", end):
+            self.text.delete(ins, end)
         return "break"
 
     def _tab(self, _=None):
@@ -1172,7 +1288,8 @@ class App:
             f"{MOD}+N 새 파일    {MOD}+O 열기    {MOD}+S 저장    {MOD}+W 닫기\n"
             f"{MOD}+F 찾기    F3 다음    {MOD}+L 줄 이동    {MOD}+Shift+F 파일에서 찾기\n"
             f"{MOD}+D 줄 복제    {MOD}+/ 주석    Alt+Up/Down 줄 이동    {MOD}+B 사이드바\n"
-            f"{MOD}+=/- 확대축소    F2 북마크    탭 중클릭으로 닫기",
+            f"{MOD}+=/- 확대축소    F2 북마크    탭 중클릭으로 닫기\n"
+            f"Shift+Enter 줄바꿈    {MOD}+⌫ 줄 앞까지 지우기    {MOD}+←/→ 줄 처음/끝",
             parent=self.root,
         )
 

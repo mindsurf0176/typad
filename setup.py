@@ -38,9 +38,6 @@ OPTIONS = {
     "includes": ["core", "tkinter"] + (["Foundation"] if SANDBOXED else []),
 }
 
-if SANDBOXED:
-    OPTIONS["entitlements_file"] = "scripts/typad.entitlements"
-
 setup(
     app=APP,
     name="typad",

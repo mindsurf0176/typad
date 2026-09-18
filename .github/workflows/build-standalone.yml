@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: macos-14
+    env:
+      HAS_CERT: ${{ secrets.MACOS_CERTIFICATE }}
+      HAS_NOTARY_KEY: ${{ secrets.NOTARY_KEY_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,18 +42,15 @@ jobs:
           fi
           echo "No Homebrew references. Standalone build confirmed."
 
-      - name: Import smoke test (no GUI)
-        run: |
-          dist/typad.app/Contents/MacOS/typad --help >/dev/null 2>&1 || true
-          echo "binary present:"
-          file dist/typad.app/Contents/MacOS/typad
+      - name: Binary present
+        run: file dist/typad.app/Contents/MacOS/typad
 
-      - name: Ad-hoc sign (unsigned build, no secrets configured)
-        if: ${{ secrets.MACOS_CERTIFICATE == '' }}
+      - name: Ad-hoc sign (no signing secrets configured)
+        if: ${{ env.HAS_CERT == '' }}
         run: codesign --force --deep -s - dist/typad.app
 
       - name: Import signing certificate
-        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        if: ${{ env.HAS_CERT != '' }}
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -63,7 +63,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
 
       - name: Sign with Developer ID (hardened runtime)
-        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        if: ${{ env.HAS_CERT != '' }}
         env:
           SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         run: |
@@ -72,7 +72,7 @@ jobs:
             --sign "$SIGNING_IDENTITY" dist/typad.app
 
       - name: Notarize and staple
-        if: ${{ secrets.NOTARY_KEY_ID != '' }}
+        if: ${{ env.HAS_NOTARY_KEY != '' }}
         env:
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
@@ -85,12 +85,10 @@ jobs:
           xcrun stapler staple dist/typad.app
 
       - name: Package
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/typad.app dist/typad-standalone-macos.zip
+        run: ditto -c -k --sequesterRsrc --keepParent dist/typad.app dist/typad-standalone-macos.zip
 
       - uses: actions/upload-artifact@v4
         with:
           name: typad-standalone-macos
-          path: |
-            dist/typad-standalone-macos.zip
+          path: dist/typad-standalone-macos.zip
 

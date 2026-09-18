@@ -44,9 +44,11 @@ Developer ID Application and Apple Distribution certificates for MINSEO LEE (74Q
 
 ## Remaining gates (not done)
 
-1. Standalone runtime — current `typad.app` copies this Mac's Homebrew Python.app. Other Macs, notarization, and App Store review will not accept that.
+1. Standalone runtime — current `typad.app` copies this Mac's Homebrew Python.app rather than vendoring a relocatable copy. A relocatable-bundle attempt (rewriting Mach-O linkage with install_name_tool and re-signing) got through build and static verification, but the resulting binary hung inside dyld at launch (confirmed via `sample`: stuck in `isMachO`/shared-cache resolution before `main()` ever ran). That approach was abandoned rather than shipped broken. `py2app` — the standard tool for this — could not be installed either: this machine's `platform.mac_ver()` returns an empty string in some shells, which crashes pip's bundled `truststore` SSL backend during `pip install`, and get-pip.py's own bootstrap pip additionally hits an unrelated `_prevent_import_hook` ImportError on Python 3.14. Other Macs and App Store review will not accept a Homebrew-linked binary.
 2. Sandbox file access — tkinter file dialogs do not create security-scoped bookmarks. Sandboxed open/save needs NSOpenPanel/NSSavePanel (PyObjC or a native wrapper) before review.
 3. App Store Connect — create the app with bundle id `ai.minseo.typad`, upload 1280x800 (or 2560x1600) screenshots, attach this privacy policy URL.
 4. Review submit — Apple Distribution signed pkg/ipa via Transporter. Not started.
+5. Notarization — needs either an existing `xcrun notarytool` keychain profile or the account's Apple ID + an app-specific password to create one. Not set up; credentials were not requested or stored.
+6. Interactive click QA — AppleScript/System Events UI automation from this shell hangs waiting on an Accessibility/Automation permission prompt that nothing can dismiss headlessly. `test_texter.py`'s GUI smoke test (creates a real Tk window, exercises tabs/search/comments, closes cleanly) passes, and the packaged app launches and shows the correct `typad` menu-bar name via `open`, but no one has clicked through Settings, dialogs, or shortcuts by hand yet.
 
 Entitlements draft: `scripts/typad.entitlements` (app sandbox + user-selected files). The local Homebrew wrapper is still ad-hoc signed and not sandboxed.

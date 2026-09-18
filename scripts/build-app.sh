@@ -54,7 +54,14 @@ exec "$DIR/../Resources/Python.app/Contents/MacOS/Python" "$DIR/../Resources/tex
 LAUNCH
 chmod +x "$APP/Contents/MacOS/typad" "$APP/Contents/Resources/texter.py"
 
-if command -v codesign >/dev/null; then
+ENTITLEMENTS="$ROOT/scripts/runtime.entitlements"
+if [ -n "${SIGNING_IDENTITY:-}" ]; then
+  # Real Developer ID signing for notarization: hardened runtime + secure
+  # timestamp + library-validation disabled (the app loads Homebrew's
+  # Python/Tcl/Tk dylibs, which carry a different Team ID).
+  codesign --force --deep --options runtime --timestamp \
+    --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$APP"
+else
   codesign --force --deep -s - "$APP" >/dev/null
 fi
 

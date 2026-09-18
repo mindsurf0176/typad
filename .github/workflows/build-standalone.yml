@@ -1,0 +1,96 @@
+name: Build standalone macOS app
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install py2app
+        run: python3 -m pip install --upgrade pip py2app
+
+      - name: Build icon
+        run: |
+          python3 -m pip install pillow
+          python3 scripts/make_icon.py
+
+      - name: Build app with py2app
+        run: python3 setup.py py2app
+
+      - name: Confirm no Homebrew linkage
+        run: |
+          set -e
+          BAD=$(find dist/typad.app -type f \( -perm -u+x -o -name "*.dylib" -o -name "*.so" \) -print0 \
+            | xargs -0 otool -L 2>/dev/null | grep -E "/opt/homebrew|/usr/local/(opt|Cellar)" || true)
+          if [ -n "$BAD" ]; then
+            echo "Homebrew-linked binaries found:"
+            echo "$BAD"
+            exit 1
+          fi
+          echo "No Homebrew references. Standalone build confirmed."
+
+      - name: Import smoke test (no GUI)
+        run: |
+          dist/typad.app/Contents/MacOS/typad --help >/dev/null 2>&1 || true
+          echo "binary present:"
+          file dist/typad.app/Contents/MacOS/typad
+
+      - name: Ad-hoc sign (unsigned build, no secrets configured)
+        if: ${{ secrets.MACOS_CERTIFICATE == '' }}
+        run: codesign --force --deep -s - dist/typad.app
+
+      - name: Import signing certificate
+        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+
+      - name: Sign with Developer ID (hardened runtime)
+        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        env:
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          codesign --force --deep --options runtime --timestamp \
+            --entitlements scripts/runtime.entitlements \
+            --sign "$SIGNING_IDENTITY" dist/typad.app
+
+      - name: Notarize and staple
+        if: ${{ secrets.NOTARY_KEY_ID != '' }}
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          echo "$NOTARY_KEY_P8" | base64 --decode > /tmp/notary_key.p8
+          ditto -c -k --sequesterRsrc --keepParent dist/typad.app dist/typad-standalone.zip
+          xcrun notarytool submit dist/typad-standalone.zip \
+            --key /tmp/notary_key.p8 --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --wait
+          xcrun stapler staple dist/typad.app
+
+      - name: Package
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/typad.app dist/typad-standalone-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: typad-standalone-macos
+          path: |
+            dist/typad-standalone-macos.zip
+

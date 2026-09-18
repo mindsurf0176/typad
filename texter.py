@@ -15,11 +15,13 @@ from core import (
     COMMENT,
     MAX_HIGHLIGHT,
     MAX_OPEN_WARN,
+    ScopedAccess,
     decode_bytes,
     detect_lang,
     encode_for_save,
     find_in_files,
     load_conf,
+    make_bookmark,
     replace_all_text,
     save_conf,
     search_text,
@@ -64,6 +66,7 @@ class Editor(tk.Frame):
         self.lang = "text"
         self.saved = ""
         self._hl = None
+        self.access: ScopedAccess | None = None
         self.gutter = tk.Text(
             self, width=5, padx=6, takefocus=0, wrap="none", bd=0,
             highlightthickness=0, state="disabled", cursor="arrow",
@@ -569,6 +572,8 @@ class App:
         self.show_gutter = self.conf.get("show_gutter", True)
         self.syntax = self.conf.get("syntax", True)
         self.recent: list[str] = list(self.conf.get("recent", []))[:15]
+        self.bookmarks: dict[str, str] = dict(self.conf.get("bookmarks", {}))
+        self.folder_access: ScopedAccess | None = None
         self.folder = Path(self.conf["folder"]).expanduser() if self.conf.get("folder") else None
         self.root = tk.Tk()
         self.root.title(APP_NAME)
@@ -587,12 +592,21 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
         self._bind()
         self._mac_hooks()
-        if self.folder and self.folder.is_dir():
-            self._fill_tree(self.folder)
+        if self.folder:
+            probe = ScopedAccess(self.bookmarks.get(str(self.folder)))
+            with probe:
+                is_dir = self.folder.is_dir()
+            if is_dir:
+                self.open_folder(self.folder)
+            else:
+                self.folder = None
         if self.restore_session:
             for p in self.conf.get("session", []):
                 path = Path(p)
-                if path.is_file():
+                probe = ScopedAccess(self.bookmarks.get(str(path)))
+                with probe:
+                    exists = path.is_file()
+                if exists:
                     self.open_path(path)
         for arg in sys.argv[1:]:
             if arg.startswith("-psn") or arg.startswith("-"):
@@ -951,7 +965,12 @@ class App:
             self.open_folder(Path(p))
 
     def open_folder(self, path: Path):
+        if self.folder_access:
+            self.folder_access.stop()
+        self.folder_access = ScopedAccess(self.bookmarks.get(str(path)))
+        self.folder_access.start()
         self.folder = path
+        self._remember_bookmark(path)
         if str(self.side) not in self.paned.panes():
             self.paned.insert(0, self.side, weight=0)
         self._fill_tree(path)
@@ -1003,31 +1022,44 @@ class App:
             self.tree.item(iid, open=True)
             self._tree_open()
 
+    def _remember_bookmark(self, path: Path):
+        # No-op outside the sandbox (make_bookmark returns None there).
+        bm = make_bookmark(path)
+        if bm:
+            self.bookmarks[str(path)] = bm
+
     def open_path(self, path: Path):
-        path = path.expanduser()
+        raw_path = path.expanduser()
+        access = ScopedAccess(self.bookmarks.get(str(raw_path)))
+        access.start()
         try:
-            path = path.resolve()
+            path = raw_path.resolve()
         except OSError:
-            path = path.absolute()
+            path = raw_path.absolute()
         for ed in self.editors:
             if ed.path == path:
                 self.nb.select(ed)
+                access.stop()
                 return
         try:
             raw = path.read_bytes()
         except OSError as e:
+            access.stop()
             messagebox.showerror("열기 실패", str(e), parent=self.root)
             return
         if len(raw) > MAX_OPEN_WARN:
             if not messagebox.askokcancel("큰 파일", f"{path.name} 이 {len(raw) // 1_000_000}MB입니다. 열까요?", parent=self.root):
+                access.stop()
                 return
         try:
             text, enc, eol = decode_bytes(raw)
         except ValueError:
+            access.stop()
             messagebox.showerror("열기 실패", "바이너리 파일은 열 수 없습니다.", parent=self.root)
             return
         ed = self.new_tab()
         ed.path = path
+        ed.access = access
         ed.encoding = enc
         ed.eol = eol
         ed.lang = detect_lang(path)
@@ -1039,6 +1071,7 @@ class App:
         ed.redraw_gutter()
         self.refresh_tab(ed)
         self._push_recent(path)
+        self._remember_bookmark(path)
         self.status()
         if self.folder is None and path.parent.is_dir():
             self.open_folder(path.parent)
@@ -1055,7 +1088,7 @@ class App:
             self.recent_menu.add_command(label="(없음)", state="disabled")
             return
         for p in self.recent:
-            self.recent_menu.add_command(label=p, command=lambda q=p: Path(q).exists() and self.open_path(Path(q)))
+            self.recent_menu.add_command(label=p, command=lambda q=p: self.open_path(Path(q)))
 
     def save(self, _=None) -> bool:
         ed = self._ed()
@@ -1074,8 +1107,14 @@ class App:
             return False
         path = Path(p)
         if self._write(ed, path):
+            old_access = ed.access
             ed.path = path
             ed.lang = detect_lang(path)
+            self._remember_bookmark(path)
+            ed.access = ScopedAccess(self.bookmarks.get(str(path)))
+            ed.access.start()
+            if old_access:
+                old_access.stop()
             ed.highlight()
             self.refresh_tab(ed)
             self._push_recent(path)
@@ -1123,6 +1162,9 @@ class App:
                 return
         self.nb.forget(ed)
         self.editors.remove(ed)
+        if ed.access:
+            ed.access.stop()
+            ed.access = None
         ed.destroy()
         if not self.editors:
             self.new_tab()
@@ -1465,6 +1507,10 @@ class App:
             geo = self.root.geometry()
         except tk.TclError:
             geo = self.conf.get("geometry", "1100x720")
+        live = {str(self.folder)} if self.folder else set()
+        live |= {str(ed.path) for ed in self.editors if ed.path}
+        live |= set(self.recent)
+        bookmarks = {k: v for k, v in self.bookmarks.items() if k in live}
         save_conf({
             "theme": self.theme,
             "wrap": self.wrap,
@@ -1479,6 +1525,7 @@ class App:
             "folder": str(self.folder) if self.folder else None,
             "sidebar": str(self.side) in self.paned.panes(),
             "recent": self.recent,
+            "bookmarks": bookmarks,
             "session": [str(ed.path) for ed in self.editors if ed.path],
         })
 
@@ -1493,6 +1540,11 @@ class App:
                     return
                 ed.saved = ed.content()
         self.persist()
+        for ed in self.editors:
+            if ed.access:
+                ed.access.stop()
+        if self.folder_access:
+            self.folder_access.stop()
         self.root.destroy()
 
     def run(self):

@@ -92,3 +92,44 @@ jobs:
           name: typad-standalone-macos
           path: dist/typad-standalone-macos.zip
 
+  build-sandboxed:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install py2app + PyObjC
+        run: python3 -m pip install --upgrade pip py2app pyobjc-framework-Cocoa pillow
+
+      - name: Run the bookmark/session-restore tests on a real macOS runner
+        run: python3 test_texter.py
+
+      - name: Build icon
+        run: python3 scripts/make_icon.py
+
+      - name: Build the App Sandbox variant
+        env:
+          TYPAD_SANDBOX: "1"
+        run: python3 setup.py py2app
+
+      - name: Ad-hoc sign with the sandbox entitlement
+        run: |
+          codesign --force --deep -s - --entitlements scripts/typad.entitlements dist/typad.app
+
+      - name: Confirm the sandbox entitlement is embedded
+        run: |
+          set -e
+          codesign -d --entitlements :- dist/typad.app | tee /tmp/entitlements.xml
+          grep -q "com.apple.security.app-sandbox" /tmp/entitlements.xml
+
+      - name: Package
+        run: ditto -c -k --sequesterRsrc --keepParent dist/typad.app dist/typad-sandboxed-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: typad-sandboxed-macos
+          path: dist/typad-sandboxed-macos.zip
+

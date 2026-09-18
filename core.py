@@ -219,3 +219,100 @@ def save_conf(conf: dict) -> None:
         CONF_PATH.write_text(json.dumps(conf, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
         pass
+
+
+# --- App Sandbox security-scoped bookmarks -------------------------------
+#
+# Only matters for a sandboxed build (the App Store track). tkinter's own
+# file dialogs still trigger the native NSOpenPanel/NSSavePanel under the
+# sandbox and work fine for the current session, but persisted access
+# across relaunches -- session restore, the recent-files list, the last
+# browsed folder -- needs a security-scoped bookmark taken right after the
+# panel grants access. Everything here is a no-op when PyObjC's Cocoa
+# bridge isn't importable, which is true for every non-sandboxed build
+# (the notarized direct-distribution app, the standalone py2app build
+# without the sandbox entitlement, and plain `python3 texter.py`).
+try:
+    from Foundation import NSData, NSURL  # type: ignore
+
+    HAVE_COCOA = True
+except Exception:  # pragma: no cover - exercised only without PyObjC
+    HAVE_COCOA = False
+
+_BOOKMARK_CREATE_WITH_SECURITY_SCOPE = 1 << 11
+_BOOKMARK_RESOLVE_WITH_SECURITY_SCOPE = 1 << 10
+
+
+def make_bookmark(path: Path) -> str | None:
+    """Create a base64 security-scoped bookmark for ``path``.
+
+    Returns None outside the sandbox, without PyObjC, or if the process
+    does not currently hold sandbox access to ``path`` (for example a
+    path that was never chosen through a mediated open/save panel).
+    Callers should treat None exactly like "no bookmark available" and
+    fall back to the plain path, which is what every existing caller
+    already does.
+    """
+    if not HAVE_COCOA:
+        return None
+    try:
+        import base64
+
+        url = NSURL.fileURLWithPath_(str(path))
+        data, _error = url.bookmarkDataWithOptions_includingResourceValuesForKeys_relativeToURL_error_(
+            _BOOKMARK_CREATE_WITH_SECURITY_SCOPE, None, None, None,
+        )
+        if not data:
+            return None
+        return base64.b64encode(bytes(data)).decode("ascii")
+    except Exception:
+        return None
+
+
+class ScopedAccess:
+    """Context manager around ``NSURL`` security-scoped resource access.
+
+    A no-op everywhere PyObjC/Cocoa is unavailable or ``bookmark_b64`` is
+    falsy, so every call site behaves identically in non-sandboxed
+    builds. Safe to enter more than once; ``stop`` is idempotent.
+    """
+
+    def __init__(self, bookmark_b64: str | None):
+        self._bookmark = bookmark_b64
+        self._url = None
+        self._active = False
+
+    def __enter__(self) -> "ScopedAccess":
+        self.start()
+        return self
+
+    def __exit__(self, *exc) -> bool:
+        self.stop()
+        return False
+
+    def start(self) -> bool:
+        if self._active or not HAVE_COCOA or not self._bookmark:
+            return self._active
+        try:
+            import base64
+
+            raw = base64.b64decode(self._bookmark)
+            ns_data = NSData.dataWithBytes_length_(raw, len(raw))
+            url, _stale, _error = NSURL.URLByResolvingBookmarkData_options_relativeToURL_bookmarkDataIsStale_error_(
+                ns_data, _BOOKMARK_RESOLVE_WITH_SECURITY_SCOPE, None, None, None,
+            )
+            if url is not None and url.startAccessingSecurityScopedResource():
+                self._url = url
+                self._active = True
+        except Exception:
+            self._active = False
+        return self._active
+
+    def stop(self) -> None:
+        if self._active and self._url is not None:
+            try:
+                self._url.stopAccessingSecurityScopedResource()
+            except Exception:
+                pass
+        self._active = False
+        self._url = None

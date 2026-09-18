@@ -10,7 +10,9 @@ from core import (
     decode_bytes,
     detect_lang,
     encode_for_save,
+    make_bookmark,
     replace_all_text,
+    ScopedAccess,
     search_text,
     spans,
     toggle_comment,
@@ -114,6 +116,69 @@ def test_edit_keys():
     app.root.destroy()
 
 
+def test_security_scoped_bookmark_roundtrip():
+    import core
+    import tempfile
+
+    if not core.HAVE_COCOA:
+        return  # only meaningful with PyObjC's Cocoa bridge available
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "bookmark-target.txt"
+        p.write_text("hello")
+        bm = make_bookmark(p)
+        assert bm, "expected a non-empty bookmark string"
+        access = ScopedAccess(bm)
+        assert access.start() is True
+        assert p.read_text() == "hello"
+        access.stop()
+        # idempotent: stopping twice, or a bookmark-less access, must not raise
+        access.stop()
+        noop = ScopedAccess(None)
+        assert noop.start() is False
+        noop.stop()
+
+
+def test_session_restore_reopens_via_bookmark():
+    import core
+    import tempfile
+
+    from texter import App
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        target = tmp_path / "restore-me.txt"
+        target.write_text("persisted content")
+        conf_path = tmp_path / "config.json"
+        original_conf_path = core.CONF_PATH
+        core.CONF_PATH = conf_path
+        try:
+            app = App()
+            app.root.withdraw()
+            app.open_path(target)
+            resolved = target.resolve()
+            opened = next((e for e in app.editors if e.path == resolved), None)
+            assert opened is not None, "open_path did not create a tab for the target file"
+            if core.HAVE_COCOA:
+                assert str(resolved) in app.bookmarks
+                assert opened.access is not None
+            app.persist()
+            app.root.destroy()
+
+            saved = core.load_conf()
+            assert str(resolved) in saved.get("session", [])
+            if core.HAVE_COCOA:
+                assert str(resolved) in saved.get("bookmarks", {})
+
+            app2 = App()
+            app2.root.withdraw()
+            restored = next((e for e in app2.editors if e.path == resolved), None)
+            assert restored is not None, "second launch did not restore the session file"
+            assert restored.content() == "persisted content"
+            app2.root.destroy()
+        finally:
+            core.CONF_PATH = original_conf_path
+
+
 if __name__ == "__main__":
     test_detect_lang()
     test_app_identity()
@@ -122,4 +187,6 @@ if __name__ == "__main__":
     test_spans_python_js_html()
     test_gui_smoke()
     test_edit_keys()
+    test_security_scoped_bookmark_roundtrip()
+    test_session_restore_reopens_via_bookmark()
     print("ok")

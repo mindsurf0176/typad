@@ -4,11 +4,22 @@ quirks documented in docs/app-store.md.
 
     python3 -m pip install py2app
     python3 setup.py py2app
+
+Set TYPAD_SANDBOX=1 to build the App Sandbox variant instead (adds the
+App Sandbox entitlement plus PyObjC's Cocoa bridge so core.py's
+security-scoped bookmark helpers actually work under sandbox):
+
+    python3 -m pip install py2app pyobjc-framework-Cocoa
+    TYPAD_SANDBOX=1 python3 setup.py py2app
 """
+import os
+
 from setuptools import setup
 
 APP = ["texter.py"]
 DATA_FILES = []
+SANDBOXED = os.environ.get("TYPAD_SANDBOX") == "1"
+
 OPTIONS = {
     "argv_emulation": False,
     "iconfile": "dist/AppIcon.icns",
@@ -24,14 +35,16 @@ OPTIONS = {
         "ITSAppUsesNonExemptEncryption": False,
     },
     "packages": [],
-    "includes": ["core", "tkinter"],
+    "includes": ["core", "tkinter"] + (["Foundation"] if SANDBOXED else []),
 }
+
+if SANDBOXED:
+    OPTIONS["entitlements_file"] = "scripts/typad.entitlements"
 
 setup(
     app=APP,
     name="typad",
     data_files=DATA_FILES,
     options={"py2app": OPTIONS},
-    setup_requires=["py2app"],
+    setup_requires=["py2app"] + (["pyobjc-framework-Cocoa"] if SANDBOXED else []),
 )
-

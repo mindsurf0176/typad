@@ -45,7 +45,9 @@ open dist/typad.dmg
 이 명령은 **이 Mac의 Homebrew Python**을 번들에 복사합니다. 다른 Mac으로 복사하거나 앱스토어에 올리는 빌드가 아닙니다.
 앱 카테고리는 생산성, 번들 ID는 `ai.minseo.typad`입니다.
 
-GitHub Releases는 소스 태그입니다. Mac App Store 제출은 [docs/app-store.md](docs/app-store.md) 게이트가 남아 있습니다.
+[GitHub Releases](https://github.com/mindsurf0176/typad/releases)에는 Developer ID로 서명하고 애플 공증(notarize)·staple까지 마친 `typad.app` / `typad.dmg`가 올라가 있습니다. Gatekeeper 경고 없이 바로 열립니다. 단, 이 Mac의 Homebrew Python 3.14(tkinter 포함)가 있는 다른 Mac에서만 그대로 동작합니다 — 완전히 독립적인(어떤 Mac에서든 도는) 빌드는 아직입니다. 공증을 다시 하려면 `sh scripts/notarize.sh` (Developer ID 인증서 + `typad-notary` notarytool 키체인 프로파일 필요).
+
+Mac App Store 제출은 별도 트랙이며 [docs/app-store.md](docs/app-store.md)에 남은 게이트가 있습니다.
 
 ## 라이선스 / 개인정보
 

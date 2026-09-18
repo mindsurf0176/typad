@@ -40,7 +40,7 @@ Data Not Collected.
 
 ## Signed identities on this Mac
 
-Developer ID Application and Apple Distribution certificates for MINSEO LEE (74Q37UBA68) are installed. App Store Connect submission still needs an app record, screenshots, and a sandboxed standalone build.
+Developer ID Application and Apple Distribution certificates for MINSEO LEE (74Q37UBA68) are installed. `scripts/notarize.sh` uses the Developer ID Application identity plus a notarytool keychain profile (`typad-notary`, backed by an existing App Store Connect API key) to sign with hardened runtime, submit to Apple's notary service, and staple the ticket. GitHub Releases v0.2.1 now ships a notarized, stapled `typad.app`/`typad.dmg` — `spctl --assess` reports `source=Notarized Developer ID`. App Store Connect submission (a separate track from notarized direct distribution) still needs an app record, screenshots, and a sandboxed standalone build.
 
 ## Remaining gates (not done)
 
@@ -48,7 +48,7 @@ Developer ID Application and Apple Distribution certificates for MINSEO LEE (74Q
 2. Sandbox file access — tkinter file dialogs do not create security-scoped bookmarks. Sandboxed open/save needs NSOpenPanel/NSSavePanel (PyObjC or a native wrapper) before review.
 3. App Store Connect — create the app with bundle id `ai.minseo.typad`, upload 1280x800 (or 2560x1600) screenshots, attach this privacy policy URL.
 4. Review submit — Apple Distribution signed pkg/ipa via Transporter. Not started.
-5. Notarization — needs either an existing `xcrun notarytool` keychain profile or the account's Apple ID + an app-specific password to create one. Not set up; credentials were not requested or stored.
+5. ~~Notarization~~ — done for direct distribution (see above). Not the same as an App Store Connect submission, which is a separate, still-not-started track (gates 2-4).
 6. Interactive click QA — AppleScript/System Events UI automation from this shell hangs waiting on an Accessibility/Automation permission prompt that nothing can dismiss headlessly. `test_texter.py`'s GUI smoke test (creates a real Tk window, exercises tabs/search/comments, closes cleanly) passes, and the packaged app launches and shows the correct `typad` menu-bar name via `open`, but no one has clicked through Settings, dialogs, or shortcuts by hand yet.
 
-Entitlements draft: `scripts/typad.entitlements` (app sandbox + user-selected files). The local Homebrew wrapper is still ad-hoc signed and not sandboxed.
+Entitlements: `scripts/runtime.entitlements` (hardened runtime, library validation disabled for Homebrew's dylibs) is what actually ships, signed and notarized. `scripts/typad.entitlements` (app sandbox + user-selected files) is only a draft for a future App Store submission; the notarized direct-distribution build is intentionally not sandboxed.

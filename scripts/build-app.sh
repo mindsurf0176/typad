@@ -59,6 +59,18 @@ if [ -n "${SIGNING_IDENTITY:-}" ]; then
   # Real Developer ID signing for notarization: hardened runtime + secure
   # timestamp + library-validation disabled (the app loads Homebrew's
   # Python/Tcl/Tk dylibs, which carry a different Team ID).
+  # codesign --deep does not reliably propagate these options into nested
+  # bundles, so the embedded Python.app must be signed on its own first
+  # (Apple's own guidance: sign inside-out, deepest code first).
+  find "$APP/Contents/Resources/Python.app" -type f \( -perm -u+x -o -name "*.dylib" \) -print0 2>/dev/null \
+    | xargs -0 file 2>/dev/null | grep "Mach-O" | cut -d: -f1 \
+    | while IFS= read -r bin; do
+        codesign --force --options runtime --timestamp \
+          --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$bin"
+      done
+  codesign --force --options runtime --timestamp \
+    --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" \
+    "$APP/Contents/Resources/Python.app"
   codesign --force --deep --options runtime --timestamp \
     --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$APP"
 else
